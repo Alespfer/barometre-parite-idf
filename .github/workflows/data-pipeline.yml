@@ -1,0 +1,41 @@
+# .github/workflows/data-pipeline.yml
+
+name: Mise à jour des données Egapro
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 8 1 * *'
+
+jobs:
+  update-data:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout du code
+        uses: actions/checkout@v4
+
+      - name: Mise en place de R
+        uses: r-lib/actions/setup-r@v2
+        with:
+          r-version: '4.5'
+      
+      # --- NOUVEAU BLOC AJOUTÉ ICI ---
+      - name: Installation des dépendances système
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libcurl4-openssl-dev libgdal-dev libudunits2-dev gdal-bin libproj-dev
+      # --- FIN DU NOUVEAU BLOC ---
+      
+      - name: Mise en place du cache renv
+        uses: r-lib/actions/setup-renv@v2
+
+      - name: Exécution du pipeline de données
+        run: Rscript run_pipeline.R
+        
+      - name: Commit des fichiers de données mis à jour
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "📊 Chore: Mise à jour automatique des données"
+          file_pattern: "data_shiny/*.RDS"
+          commit_user_name: "GitHub Actions Bot"
+          commit_user_email: "actions@github.com"

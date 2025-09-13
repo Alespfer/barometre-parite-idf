@@ -1,0 +1,327 @@
+---
+title: "Rapport de Projet : Conception et Développement du Baromètre de la Parité en Entreprise"
+subtitle: "Analyse des Données Égapro pour les Territoires de l'Île-de-France"
+author: "Alberto Esperon"
+date: "`r format(Sys.Date(), '%d %B %Y')`"
+output:
+  html_document:
+    toc: true
+    toc_depth: 3
+    toc_float: true
+    theme: united
+    code_folding: hide
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
+```
+
+
+## Résumé exécutif
+
+Ce rapport présente la conception et le développement d'un baromètre interactif dédié à l'analyse de **l'égalité professionnelle femmes-hommes en Île-de-France**. L'outil, développé avec R et Shiny, exploite les données de l'Index Egapro pour proposer une analyse territoriale et sectorielle fine des performances régionales. En intégrant des données multi-sources (Égapro, SIRENE, INSEE), le projet analyse des dizaines de milliers d'observations d'entreprises sur la période 2018-2024. L'application finale, structurée en modules d'analyse spécialisés, offre aux décideurs publics un outil robuste d'aide à la décision fondé sur des données factuelles.
+
+---
+
+## 1. Contexte, Problématique et Objectifs
+
+### 1.1 Contexte Général
+
+Depuis la loi "pour la liberté de choisir son avenir professionnel" (2018), les entreprises de plus de 50 salariés ont l'obligation de calculer et publier annuellement leur **Index de l'égalité professionnelle (Egapro)**. Cet index, noté sur 100 points, constitue un instrument clé dans la lutte contre les inégalités socio-économiques entre les femmes et les hommes sur le marché du travail. Il agrège des indicateurs précis tels que les écarts de rémunération, d'augmentations, de promotions, ainsi que la parité dans les plus hautes rémunérations.
+
+Malgré la richesse de ces données publiques, leur exploitation reste souvent limitée, particulièrement en ce qui concerne une perspective d'analyse territoriale. Les outils existants se concentrent principalement sur des vues nationales ou sectorielles, laissant un vide dans la compréhension des dynamiques locales, notamment au sein d'une région aussi complexe que l'Île-de-France.
+
+### 1.2 Problématique et évolution des objectifs :
+
+La problématique initiale de notre V1 était centrée sur les territoires du Grand Paris. La V2 de ce projet étend cette ambition : **Comment développer un outil d'aide à la décision permettant d'analyser et de comparer les performances d'égalité professionnelle à l'échelle de l'ensemble des territoires de la région Île-de-France ?**
+
+
+Pour y répondre, les objectifs du **« Baromètre de la Parité en Entreprise »** ont été élargis en conséquence :
+
+1.  **Centraliser et visualiser les données Egapro pour toute l'Île-de-France.**
+2.  **Permettre des analyses multi-échelles ** en offrant des comparaisons selon trois niveaux d'analyse territoriale : les Départements, les Intercommunalités (EPCI) et les Zones d'Emploi (ZE).
+3.  **Analyser l'Index en profondeur** en créant un module d'analyse dédié à l'exploration de chacun des cinq indicateurs qui composent le score Egapro global.
+4.  **Contextualiser avec des données socio-économiques pertinentes à l'échelle des bassins de vie et d'emploi.** 
+
+Le public cible s'élargit aux acteurs publics de toute la région : élus, services de développement économique, et chargés de mission des collectivités franciliennes.
+
+
+---
+
+## 2. Démarche méthodologique et construction de la base de données
+
+### 2.1 Collecte des données sources
+
+Les sources de données restent les mêmes, mais leur périmètre a été étendu : 
+
+*   **Index Egapro (Ministère du Travail) :** Collecte dynamique via l'API de `data.gouv.fr` pour garantir l'accès aux données les plus à jour.
+*   **Base SIRENE (INSEE) :** Utilisation de l'API d'Opendatasoft pour obtenir la localisation (coordonnées GPS du siège social) et le secteur d'activité (code NAF) de chaque entreprise.
+*   **Recensement de la Population 2021 (INSEE) :** Utilisation des fichiers détaillés (`base "Activité des résidents"`, `TD_ACT5`) pour construire des indicateurs socio-démographiques à l'échelle communale.
+*   **Données Géographiques (OpenDataSoft) :** Fonds de carte administratifs pour les représentations cartographiques des Départements, EPCI et Zones d'Emploi.
+
+### 2.2 Chaîne de traitement et d'enrichissement des données
+
+La constitution d'une base de données exploitable a nécessité un pipeline de traitement, orchestré par un script R Markdown(`methodologie_preparation_donnees.Rmd`) qui s'appuie sur un ensemble de fonctions personnalisées (`utils.R`). Ce processus se décompose en quatre étapes majeures :
+
+
+1.  **Nettoyage des Données Egapro :** Standardisation des noms de colonnes, conversion des types, gestion des valeurs manquantes et non calculables ("NC").
+2.  **Filtrage des Données SIRENE :** Seuls les sièges sociaux localisés en Île-de-France et appartenant à des entreprises de plus de 50 salariés ont été conservés pour correspondre au périmètre de l'Index Égapro.
+3.  **Calcul des Indicateurs Socio-démographiques :** Les données brutes de l'INSEE ont été agrégées au niveau communal pour créer des indicateurs pertinents.
+4.  **Jointure et Création de la Table Master :** L'ensemble des données a été fusionné en une table unique (`master_df_historique`). Le résultat est une table unique, riche, où chaque ligne représente une entreprise pour une année donnée, avec son score Égapro, sa localisation, son secteur, et les caractéristiques de son territoire. C'est cette table qui alimente l'ensemble de l'application Shiny.
+
+
+### 2.3 Choix méthodologiques structurants
+
+Plusieurs décisions méthodologiques ont été prises pour assurer la robustesse et la pertinence de l'outil, depuis le traitement des données brutes jusqu'à leur analyse.
+
+*   **Pondération des scores :** Pour que les moyennes territoriales ou sectorielles ne soient pas biaisées par une multitude de petites entreprises, les scores Égapro ont été pondérés par la taille des entreprises. Les poids utilisés sont le point-milieu des tranches d'effectifs (`150` pour "50-250", `625` pour "251-999"). Pour la tranche ouverte "1000 et plus", un poids forfaitaire de `1500` a été retenu, correspondant au point-milieu de la première sous-catégorie de données disponibles ("1000-1999 salariés"). Ce choix est une estimation conservative qui évite de donner un poids disproportionné aux très grands groupes.
+
+*   **Analyse multi-échelles et logique d'affiliation territoriale : ** L'application a évolué pour dépasser l'échelle unique des EPT. Elle propose désormais trois niveaux d'analyse : les **Départements** (vue administrative), les **Intercommunalités - EPCI** (vue politique locale) et les **Zones d'Emploi** (vue fonctionnelle et économique). Pour garantir la pertinence de cette analyse, une logique d'affiliation territoriale a été implémentée. De ce fait, le pipeline de données utilise une hiérarchie de règles pour affecter chaque commune à la bonne intercommunalité, en gérant manuellement les exceptions administratives (ex: communes de Grande Couronne rattachées à un EPT) avant d'appliquer les règles générales.
+
+*   **Harmonisation de l'indicateur d'augmentations :** Le barème de l'indicateur mesurant les écarts de taux d'augmentations individuelles diffère selon la taille de l'entreprise (noté sur 20 points pour les +250 salariés, et sur 35 points pour les 50-250 salariés). Ainsi, pour permettre des comparaisons statistiquement valides entre toutes les entreprises, une note harmonisée sur une base commune de 20 points a été calculée. C'est cette note qui est utilisée dans l'onglet "Analyse des Indicateurs" pour garantir la justesse des analyses.
+
+*   **Gestion du cas de Paris :** Comme dans la version précédente, une attention particulière a été portée à la cohérence des données géographiques et administratives. Par exemple, les entreprises parisiennes sont souvent localisées par leur code d'arrondissement (751xx) dans la base SIRENE. Pour assurer une jointure correcte avec les référentiels géographiques et socio-démographiques qui sont à l'échelle de la commune de Paris (75056), une étape d'harmonisation systématique a été intégrée, garantissant que toutes les entreprises parisiennes sont correctement rattachées à leur territoire d'analyse.
+
+*   **Agrégation des données socio-démographiques :** Les indicateurs socio-démographiques (taux d'activité des femmes, part de femmes cadres, etc.) ont été initialement calculés à la maille communale à partir des données de l'INSEE. Pour être pertinents dans l'onglet "Socio-démographique", ils sont ensuite agrégés à l'échelle des Zones d'Emploi. Ce choix permet de croiser les performances des entreprises non pas avec les caractéristiques de leur commune d'implantation, mais avec celles de leur bassin d'emploi fonctionnel, afin de renforcer la pertinence interprétative. 
+
+### 2.4 Automatisation du pipeline et déploiement continu :
+
+Pour garantir la pérennité, la fiabilité et la fraîcheur des données, le projet a évolué d'un processus manuel à une chaîne d'intégration et de déploiement continus  automatisés avec GitHub Actions.
+
+Deux workflows distincts ont été mis en place :
+
+
+*   **Workflow de mise à jour des données :**  Ce processus s'exécute automatiquement à une fréquence définie (actuellement, le premier jour du mois à 8h00 du matin (heure UTC)) ou peut être déclenché manuellement. Il lance le script run_pipeline.R sur un serveur distant, récupère les dernières données depuis les APIs, régénère les fichiers de données (.RDS), et commit automatiquement les changements sur le dépôt Git.
+
+*   **Workflow de déploiement de l'application :**  À chaque modification poussée sur la branche principale du dépôt (y compris les mises à jour de données effectuées par le premier workflow), ce second processus se déclenche. Il reconstruit l'environnement R à l'aide de renv et déploie la nouvelle version de l'application sur la plateforme shinyapps.io.
+
+De ce fait, cette approche garantit que l'application en ligne se trouve toujours synchronisée avec la dernière version du code et les données les plus récentes, assurant ainsi une maintenance simplifiée. Le fichier methodologie_preparation_donnees.Rmd (data_preparation.Rmd dans la V1) a été conservé comme une documentation technique détaillée du pipeline.
+
+
+### 2.5 Ressources documentaires et techniques pour l'automatisation
+
+Bien que l’automatisation via GitHub Actions n’ait pas été abordée dans le cadre du cours, cette technologie a été intégrée au projet afin de garantir la fiabilité, la fraîcheur et la pérennité du baromètre. La mise en place de cette chaîne d'intégration et de déploiement continus s'est appuyée sur les documentations et outils de référence de la communauté open-source.
+
+#### 1. Documentation officielle GitHub Actions
+
+La compréhension des concepts fondamentaux (`workflow`, `job`, `secrets`) et la mise en œuvre des déclencheurs ont été réalisées grâce à la documentation officielle :
+
+*   [Concepts et introduction à GitHub Actions](https://docs.github.com/actions)
+*   [Gestion des déclencheurs de workflows (cron, push, manuel)](https://docs.github.com/actions/using-workflows/events-that-trigger-workflows)
+*   [Bonnes pratiques pour l'intégration continue](https://docs.github.com/actions/automating-builds-and-tests/about-continuous-integration)
+
+#### 2. Actions spécifiques à l'écosystème R
+
+L'intégration avec l'environnement R a été rendue possible par les actions développées et maintenues par la communauté `r-lib` :
+
+*   **`r-lib/actions/setup-r`** : Pour [installer une version spécifique de R](https://github.com/r-lib/actions/tree/master/setup-r) sur le serveur d'exécution.
+*   **`r-lib/actions/setup-renv`** : Pour [restaurer l'environnement de paquets](https://github.com/r-lib/actions/tree/master/setup-renv) exact du projet à partir du fichier `renv.lock`.
+
+---
+
+## 3. L'Application Shiny : Fonctionnalités et Guide d'Utilisation
+
+L'application a été développée avec le framework Shiny en R. Pour cette V2, une attention particulière a été portée à l'enrichissement fonctionnel et à l'amélioration de l'ergonomie pour offrir une expérience analytique plus complète. 
+
+### 3.1 Structure de l'Application
+
+L'outil est désormais organisé en cinq onglets analytiques et un onglet de documentation, chacun répondant à une question spécifique :
+
+*   **Carte & Territoires :** Cet onglet demeure le point d'entrée géographique de l'outil, mais il a été considérablement enrichi. L'utilisateur peut désormais visualiser la performance moyenne des territoires selon trois mailles d'analyse : les Départements, les Intercommunalités (EPCI) et les Zones d'Emploi. De multiples filtres (année, secteur, taille, score) permettent d'affiner l'analyse et d'exporter les listes d'entreprises correspondantes. Une barre de recherche par numéro SIREN a également été ajoutée pour localiser rapidement une entreprise spécifique sur la carte.
+*   **Analyse Sectorielle :** Cet onglet permet d'identifier les secteurs d'activité les plus et les moins performants via un graphique en "lollipops" mettant en évidence la médiane des scores. L'interactivité avec les données cartographiques a été renforcée : un clic sur un secteur dans le graphique applique automatiquement le filtre correspondant sur l'onglet 'Carte & Territoires', permettant une exploration plus fluide des données. 
+*   **Socio-démographique :** Cet onglet conserve sa vocation exploratoire. Il permet de croiser le score Égapro moyen avec une variable socio-économique à l'échelle des Zones d'Emploi, afin de visualiser d'éventuelles corrélations. Une bannière colorée indique la force et la significativité statistique de la corrélation, calculée en pondérant chaque territoire par le nombre d'entreprises qu'il contient.
+*   **Historique & Évolutions :** Cet onglet permet d'analyser les dynamiques temporelles. Un graphique en lignes suit l'évolution du score moyen pour les territoires sélectionnés sur plusieurs années, et un indicateur clé (KPI) calcule la progression moyenne sur la période.
+
+### 3.2 Architecture Technique et Organisation du Projet
+
+Pour garantir la maintenabilité, la performance et la clarté du code, l'application a été reformulée selon une architecture modulaire. Celle-ci est directement visible dans la structure des dossiers et des fichiers du projet, où chaque élément possède un rôle précis, illustrant une stricte séparation des responsabilités.
+
+#### Organisation des Fichiers et Dossiers
+
+L'arborescence du projet a été pensée pour distinguer clairement les différentes étapes du cycle de vie des données et de l'application :
+
+Directory structure:
+└── alespfer-egapro/
+    ├── app.R
+    ├── egapro.Rproj
+    ├── global.R
+    ├── methodologie_preparation_donnees.Rmd
+    ├── rapport.Rmd
+    ├── renv.lock
+    ├── run_pipeline.R
+    ├── .Rprofile
+    ├── data/
+    │   └── raw/
+    │       ├── base-cc-evol-struct-pop-2021_xlsx.zip
+    │       ├── base-ic-activite-residents-2021_xlsx (1).zip
+    │       ├── commune_ze_2020.xlsx
+    │       ├── naf_divisions.csv
+    │       ├── TD_ACT5_2021.xlsx
+    │       ├── TD_ACT5_2021_xlsx.zip
+    │       └── ~$commune_ze_2020.xlsx
+    ├── data_shiny/
+    │   ├── agg_com.RDS
+    │   ├── agg_dep.RDS
+    │   ├── agg_ept.RDS
+    │   ├── map_com.RDS
+    │   ├── map_dep.RDS
+    │   ├── map_epci.RDS
+    │   ├── map_ept.RDS
+    │   ├── map_ze.RDS
+    │   ├── master_df_historique.RDS
+    │   └── master_points.RDS
+    ├── R/
+    │   ├── carte_module.R
+    │   ├── documentation.R
+    │   ├── historique_module.R
+    │   ├── indicateurs_module.R
+    │   ├── sectoriel_module.R
+    │   ├── socio_dem_module.R
+    │   └── utils.R
+    ├── renv/
+    │   ├── activate.R
+    │   └── settings.json
+    ├── rsconnect/
+    │   └── shinyapps.io/
+    │       └── alespfer/
+    │           └── barometre-parite-paris-1.dcf
+    ├── www/
+    │   └── styles.css
+    └── .github/
+        └── workflows/
+            ├── data-pipeline.yml
+            └── deploy-shinyapp.yml
+
+
+
+
+*   **Fichiers racine : **
+    À la racine du projet se trouvent les fichiers qui orchestrent l'ensemble. `app.R` est le point d'entrée  de l'application, tandis que `global.R` prépare tout l'environnement en amont (librairies, données, fonctions). `run_pipeline.R` sert de déclencheur pour le processus de mise à jour des données, et `methodologie_preparation_donnees.Rmd` (évolution de `data_preparation.Rmd` dans la V1) documente ce même processus en détail. 
+
+*   **Dossier `/R/` : Le Cœur de la Logique Applicative**
+    Ce répertoire contient le code source de l'application, organisé selon le patron de conception des **Shiny Modules**. Chaque fichier, correspond à un onglet de l'interface et encapsule sa propre logique (UI et serveur). Nous avons opté pour cette modularité étant donné qu'elle rend le code plus facile à gérer et à déboguer, en assurant son évolutivité. Le fichier `utils.R` regroupe, quant à lui, les fonctions transverses utilisées à la fois par les modules et le pipeline de données.
+
+*   **Dossiers `/data/` et `/data_shiny/` : **
+    Nous avons pris la décision d'effectuer une séparation stricte du cycle de vie des données, matérialisée par deux dossiers :
+    1.  `/data/raw/` contient les données brutes, originales et jamais modifiées.
+    2.  `/data_shiny/` stocke les données nettoyées, transformées et prêtes à l'emploi, sauvegardées au format `.RDS`. L'application ne lit que dans ce dossier, ce qui assure des temps de chargement quasi-instantanés et une excellente réactivité, car tous les calculs lourds ont été faits en amont.
+
+*   **Dossier `/renv/` et `renv.lock` : **
+    Le projet utilise le package `renv` pour une gestion  de ses dépendances. Le fichier `renv.lock` constitue une "photographie" des versions de tous les packages R utilisés. Le dossier `/renv/` contient la bibliothèque de packages propre au projet, l'isolant de tout autre projet. Ce système garantit que l'application peut être reconstruite et déployée sur n'importe quel système.
+
+*   **Dossier `/www/` : La couche de présentation**
+    Ce dossier standard de Shiny héberge les ressources web statiques. Le fichier `styles.css` qui s'y trouve permet de personnaliser l'apparence de l'application. 
+
+*   **Dossier `/.github/workflows/` : L'automatisation**
+    Ce répertoire contient les fichiers de configuration (`.yml`) pour GitHub Actions, qui définissent deux processus automatisés : l'un pour rafraîchir les données à intervalle régulier, l'autre pour redéployer l'application à chaque mise à jour. 
+
+Cette structure, axée sur la séparation nette entre la configuration, le code, les données brutes, les données préparées, la présentation et l'automatisation, constitue une fondation solide pour assurer la reproductibilité et pérennité de cette application. 
+
+### 3.3 Ergonomie et interactivité
+
+En plus des principes de la V1 (palette de couleurs accessible, clarté de l'information), l'ergonomie a été améliorée grâce à plusieurs ajouts :
+
+*   **Interactivité :** L'interactivité entre les modules sectoriel et cartographique a été implémentée pour rendre l'expérience de navigation et d'exploration de données plus intuitive et fluide.
+*   **Accessibilité :** Dans le respect des bonnes pratiques, un bouton "Palette accessible" se trouve toujours disponible sur les graphiques clés. Il permet de basculer vers une palette de couleurs optimisée pour les personnes daltoniennes, garantissant une meilleure lisibilité pour tous.
+*   **Documentation enrichie et interactive :** Pour accompagner les nouvelles fonctionnalités, la documentation intégrée a été entièrement mise à jour. Elle intègre désormais des hyperliens qui permettent de naviguer en un clic vers les onglets et les fonctionnalités décrites, guidant ainsi l'utilisateur dans son exploration de l'outil.
+*   **Interface soignée :** Une feuille de style CSS enrichie continue d'améliorer l'expérience utilisateur, la hiérarchie visuelle et l'esthétique générale de l'outil.
+
+---
+
+## 4. Principaux Résultats et Enseignements
+
+L'exploitation du baromètre sur la base de données constituée permet de dégager plusieurs enseignements clés sur l'état et les dynamiques de l'égalité professionnelle dans le Grand Paris.
+
+### 4.1 Une hyper-centralisation géographique : l'effet "siège social"
+
+L'analyse de notre base de données, composée d'un total de **33 001** observations (entreprise-année) sur la période 2018-2024, dévoile une hyper-centralisation géographique de l'activité économique. Un chiffre illustre cette réalité de manière frappante : près de 80 % des déclarations proviennent de la Métropole du Grand Paris.
+
+Ce phénomène semble structurellement amplifié par notre méthodologie, basée sur la localisation du siège social des entreprises (SIREN). En effet, de nombreuses grandes entreprises nationales déclarent leur Index depuis leur siège à Paris ou La Défense, devenant ainsi des "poids lourds" statistiques qui masquent leurs activités réparties sur tout le territoire
+
+
+
+En effet, cette concentration se trouve structurellement renforcée par notre méthodologie, basée sur la localisation du siège social des entreprises, seule donnée disponible dans notre jeuj de données initial (SIREN).
+
+Pour contrer cet effet d'écrasement et conserver une analyse fine, nous avons délibérément choisi de garder dans notre version finale la maille des Établissements Publics Territoriaux (EPT) au sein de la Métropole, ce qui permet de préserver une meilleure visibilité des dynamiques locales. De même, l'intégration de l'ensemble des territoires franciliens enrichit l'analyse de données périphériques, bien qu'elle ne remette pas en cause cette dynamique de fond.
+ 
+
+### 4.2 Vers une prise de conscience progressive : la progression globale de l'index
+
+
+L’analyse diachronique de la base finale confirme une tendance de fond positive depuis l'instauration de l'Index. En effet, la progression quasi-généralisée des scores moyens et le nombre croissant d'entreprises déclarantes témoignent d'une prise de conscience et de l'efficacité de la réglementation comme lévier de transformation. 
+
+Néanmoins, une nuance s’impose. On observe un ralentissement notable depuis la période 2021-2022, où les gains marginaux deviennent plus faibles, dessinant une courbe de type logarithmique. Ce phénomène de plafonnement statistique suggère que si les premières étapes de mise en conformité ont été franchies, l'atteinte d'une parité complète se heurte désormais à des obstacles plus structurels. Comme nous allons le voir, tous les indicateurs composant l'Index ne progressent pas au même rythme.
+
+
+### 4.3 L'illusion du bon score : un plafond de verre persistant
+
+Une analyse différencielle des différents indicateurs met en lumière que La bonne performance globale des entreprises franciliennes est en réalité un trompe-l'œil. Cette moyenne élevée est principalement tirée vers le haut par le bon score obtenu sur l'indicateur le plus pondéré : l'écart de rémunération, où les moyennes s'approchent de 35/40 points.
+
+Cependant, cette performance masque une faiblesse criante sur les indicateurs mesurant l'accès au pouvoir et aux plus hautes responsabilités. L'indicateur de la part des femmes dans les 10 plus hautes rémunérations est particulièrement révélateur, avec un score moyen qui stagne autour de 5/10 points.
+
+Cette dichotomie constitue l'illustration parfaite du "plafond de verre" : les entreprises parviennent à corriger les écarts de salaires à poste équivalent, mais échouent encore à garantir une progression de carrière équitable jusqu'au sommet de la hiérarchie.
+
+
+### 4.4 Une fracture sectorielle persistante : 
+
+L'analyse par secteur d'activité confirme une profonde divergence des performances en matière d'égalité professionnelle, créant une véritable fracture dans le paysage économique francilien : 
+
+
+*   **En tête de classement**, les secteurs de **l'Administration Publique** et de **l'Hébergement et restauration** se distinguent systématiquement, avec des scores médians dépassant amplement les 90 points.
+*   **À l'opposé**, les secteurs de la **Construction** et de certaines branches de l'**Industrie manufacturière** continuent d'afficher des marges de progression plus importantes, avec des scores médians souvent proches du seuil légal de vigilance situé au 85 points. 
+
+Le cas de l'Administration Publique offre un cas d'étude particulièrement révélateur. Ce secteur, encadré par des obligations réglementaires fortes en matière de parité, surperforme de manière générale sur l'ensemble des indicateurs. Il se démarque notamment sur le critère le plus difficile à atteindre pour le secteur privé : la part des femmes dans les 10 plus hautes rémunérations, avec une moyenne de 8,1/10 en 2024. Cette réussite démontre l'impact direct de l'action publique sur la réduction des inégalités structurelles, y compris au sommet de la hiérarchie. 
+
+### 4.5 Partié et convergence selon la taille d'effectif : 
+
+Au-delà du secteur, la taille des effectifs semble constituer un facteur discriminant majeur. Ainsi, en 2024, un écart moyen significatif de 4,4 points persiste entre le score moyen des grandes entreprises (+1000 salariés) qui s'élève à 91 points, et celui des PME (50-250 salariés) qui n'atteint que les 86,6 points.
+
+De surcroît, l'analyse historique nous permet de confirmer que cet écart est structurel. Les PME, intégrées plus tardivement au dispositif, partaient d'une position initiale plus faible. Ainsi, l'écart avec les grands groupes, bien que se réduisant (il était de 5,8 points en 2019), demeure conséquent.
+
+Ce constat suggère qu'en raison de moyens plus limités pour structurer des politiques RH dédiées, les plus petites structures pourraient bénéficier d'un ciblage spécifique des actions d'accompagnement pour accélérer leur mise à niveau.
+
+
+### 4.6 Des corrélations socio-démographiques révélées, mais à interpréter avec prudence :
+
+
+L'un des paris de cette nouvelle version du baromètre était de réexaminer les liens potentiels entre la performance des entreprises et le contexte socio-démographique de leur territoire. Notre première analyse, menée à l'échelle départementale, s'était révélée peu concluante. L'omniprésence de l'effet "siège social" et les intenses dynamiques de mobilité professionnelle semblaient neutraliser les caractéristiques de la population résidente locale, menant à des résultats contre-intuitifs comme des entreprises très performantes dans des départements jugés plus précaires (comme la Seine-Saint-Denis).
+
+
+En changeant d'échelle pour adopter la Zone d'Emploi — une maille fonctionnelle qui reflète mieux les bassins de vie et de travail — le tableau change radicalement. Des corrélations statistiquement significatives émergent, semblant conforter notre hypothèse initiale :
+
+Une forte corrélation positive (r = +0,73, p < 0,01) apparaît entre le score Egapro moyen d'un territoire et le taux de féminisation de ses postes de cadres. Cela nous permettrait de suggérer que les bassins d'emploi disposant d'un vivier de talents féminins à haut niveau de qualification seraient potentiellement aussi ceux qui hébergent les entreprises les plus performantes.
+
+Une corrélation négative encore plus puissante (r = -0,82, p-value < 0,001) lie le score Egapro à la part des femmes dans les professions intermédiaires. Ce résultat, bien que contre-intuitif, est riche d'enseignements. Il pourrait signifier que les Zones d'Emploi spécialisées dans des secteurs tertiaires où les femmes sont majoritaires dans les strates intermédiaires sont aussi celles où les freins à la progression de carrière ("plafond de verre") sont les plus forts, impactant négativement les indicateurs de promotion et de hautes rémunérations de l'Index Egapro.
+
+Cependant, une prudence méthodologique s'impose. Nous avons constaté que la significativité de ces corrélations est très fortement influencée par le poids statistique des Zones d'Emploi de la Métropole du Grand Paris. La relation observée pourrait donc être moins une loi générale qu'un reflet de la structure économique très spécifique du cœur dense de la région, invitant à ne pas sur-interpréter ces résultats.
+
+
+### 4.7 Limites et Points de Vigilance
+
+Pour une interprétation rigoureuse de l'outil proposé, plusieurs points de vigilences doivent être pris en compte :
+
+*   **Biais de déclaration :** L'analyse repose sur les données déclarées par les entreprises, qui peuvent comporter des biais (sous-déclaration, hétérogénéité des calculs). Bien que la couverture de l'index s'améliore avec le temps (près de 80% des entreprises concernées ayant effectué leurs déclarations en 2025), une part non négligeable d'entreprises reste non-déclarante, et des biais dans la qualité des calculs peuvent exister. 
+*   **L'effet "siège social" (SIREN vs. SIRET) :** Le choix de se concentrer sur les sièges sociaux (via le SIREN) offre une vision de la performance globale de l'entreprise, mais ne permet pas d'analyser les disparités entre les différents établissements (SIRET) d'une même organisation. Ce critère, conditionné par les données de l'index, contribue à la forte concentration des données à Paris et La Défense.
+*   **Robustesse des corrélations socio-démographiques :** Si le passage à la maille des Zones d'Emploi a permis de révéler des corrélations statistiquement significatives, notre analyse montre que leur significativité est très fortement dépendante du poids des territoires de la Métropole du Grand Paris. La relation observée est donc bien réelle, mais elle pourrait être une conséquence de la structure économique du cœur dense de la région, et non une loi généralisable. Comme toujours, corrélation n'est pas causalité.
+*   **Portée de l'Index :** L'Index Egapro, bien que puissant, ne mesure en réalité qu'une facette de l'égalité professionnelle. Il ne couvre pas des enjeux majeurs comme le temps partiel subi, l'articulation des temps de vie, le harcèlement ou la culture d'entreprise. De ce fait, il est important de garder à l'esprit qu'il reste un outil de mesure des écarts économiques, et non de toutes les formes de discrimination.
+*   **Pérennité et scalabilité technique :** Si le code a été conçu pour l'Île-de-France, son adaptation à d'autres régions nécessiterait un travail substantiel de recodage et préparation des données. De plus, la dépendance aux APIs externes (data.gouv.fr, OpenDataSoft) demeure un risque opérationnel. Cependant, nous avons essayé d'atténuer ce risque grâce à  l'automatisation du pipeline de données via GitHub Actions, ce qui nous a permis d'éliminer la dépendance à une intervention manuelle, garantissant la fraîcheur et la fiabilité des données d'une manière plus pérenne. 
+
+---
+
+## 5. Conclusion Générale
+
+
+Ce projet a visé à repondre à une problématique très concrète : transformer les données brutes de l'Index d'égalité professionnelle en un outil de pilotage stratégique pour les acteurs publics de l'Île-de-France. Le développement du **"Baromètre de la Parité en Entreprise"** confirme la valeur ajoutée de l'analyse de données territoriales appliquée aux politiques d'égalité professionnelle, et illustre le potentiel des technologies open-source comme R et Shiny pour l'aide à la décision publique.
+
+Grâce à une démarche méthodologique rigoureuse, cet outil a permis de mettre en lumière des enseignements clés, souvent masqués par les chiffres globaux. Il a notamment révélé une progression à deux vitesses : si les écarts de salaires se réduisent, l'accès des femmes aux plus hautes rémunérations reste un point de blocage majeur, symptôme d'un "plafond de verre" persistant. L'analyse a également confirmé l'existence d'une fracture sectorielle profonde et le retard structurel des PME par rapport aux grands groupes.
+
+Au-delà de ces résultats, la valeur du projet final réside dans sa pérennité technique. L'automatisation complète de la chaîne de traitement des données garantit un observatoire fiable et toujours à jour, avec une maintenance minimale. Cette fondation ouvre la voie à des développements futurs, au premier rang desquels figure son potentiel de réplication sur d'autres territoires. 
+
+---
+
+## 6. Lien vers l'Application Déployée
+
+L'application est accessible en ligne. Il est recommandé de la consulter sur un écran d'ordinateur pour une expérience optimale.
+
+**[Cliquez ici pour accéder au Baromètre de la Parité en Entreprise](https://alespfer.shinyapps.io/barometre-parite-paris-1/)**
+

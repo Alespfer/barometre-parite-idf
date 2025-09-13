@@ -1,0 +1,16 @@
+.Rhistory
+.RData
+.RDataTmp*
+.Rproj.user/
+
+.Renviron
+.DS_Store
+
+rsconnect/
+
+renv/library/
+renv/staging/
+renv/cellar/
+
+.DS_Store
+~$*.xlsx

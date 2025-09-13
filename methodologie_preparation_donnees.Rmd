@@ -1,0 +1,187 @@
+---
+title: "Processus de Préparation des Données pour le Baromètre"
+author: "Alberto Esperon"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(eval = FALSE, echo = TRUE, message = TRUE, warning = TRUE)
+```
+
+Ce document exécute la chaîne de préparation des données pour l'application Shiny. Il utilise les fonctions standardisées stockées dans `utils.R` pour importer les données brutes, les nettoyer, les enrichir, et enfin créer les fichiers finaux.
+
+### Étape 0 : Chargement des outils
+
+```{r load-tools}
+# Librairies nécessaires pour ce script
+library(dplyr)
+library(sf)
+library(stringr) 
+library(readxl)
+
+# Fonctions de préparation personnalisées
+source("R/utils.R")
+```
+
+### Étape 1 : Importation des Données Brutes
+
+```{r import-data}
+# 1.1 Egapro (via API data.gouv.fr)
+raw_egapro <- import_latest_egapro()
+
+# 1.2 SIRENE (via API Opendatasoft pour l'IDF)
+raw_sirene <- import_sirene_idf()
+
+# 1.3 Données du Recensement de la Population 2021 (INSEE)
+message("--- Importation des données du Recensement (fichiers locaux) ---")
+zip_path_pop_structure <- "data/raw/base-cc-evol-struct-pop-2021_xlsx.zip"
+zip_path_activite_reside <- "data/raw/base-ic-activite-residents-2021_xlsx (1).zip"
+zip_path_act5 <- "data/raw/TD_ACT5_2021_xlsx.zip"
+
+raw_pop_structure <- import_xlsx_from_zip(zip_path_pop_structure)
+raw_ic_activite <- import_xlsx_from_zip(zip_path_activite_reside)
+raw_act5 <- import_xlsx_from_zip(zip_path_act5, skip = 9) %>% rename_to_com()
+```
+
+### Étape 2 : Préparation et Nettoyage des Données
+
+Chaque jeu de données brut est maintenant passé à sa fonction de préparation respective pour le formater et l'enrichir.
+
+```{r prepare-data}
+# 2.1 Préparation des données Egapro
+egapro_prepared <- prepare_egapro_data(raw_egapro)
+
+# 2.2 Nettoyage des données SIRENE (conservation des sièges sociaux)
+sirene_clean <- clean_sirene_data(raw_sirene)
+
+
+sirene_clean <- sirene_clean %>%
+  dplyr::mutate(
+    code_commune = if_else(stringr::str_starts(code_commune, "751"), "75056", code_commune)
+  )
+
+# 2.3 Calcul des indicateurs socio-démographiques au niveau communal
+communes_features <- create_socio_features(
+  df_pop_structure = raw_pop_structure,
+  df_ic = raw_ic_activite,
+  df_act5 = raw_act5
+)
+
+
+paris_commune_data <- communes_features %>% filter(code_commune == "75056")
+
+if(nrow(paris_commune_data) > 0) {
+    codes_arrondissements <- sprintf("751%02d", 1:20)
+    paris_arrondissements_data <- paris_commune_data[rep(1, 20), ] %>%
+        mutate(code_commune = codes_arrondissements)
+    communes_features <- bind_rows(communes_features, paris_arrondissements_data)
+}
+
+
+```
+
+
+
+
+```{r}
+# Étape 2.4 (NOUVEAU) : Harmonisation de l'indicateur d'augmentation
+# L'indicateur "note_augmentation" est sur 20 pts (>250 sal.) ou 35 pts (50-250 sal.)
+# Nous le normalisons sur une base commune de 20 points pour permettre des moyennes cohérentes.
+message("--- Harmonisation de l'indicateur d'augmentation ---")
+egapro_prepared <- egapro_prepared %>%
+  dplyr::mutate(
+    note_augmentation_harmonisee = dplyr::case_when(
+      # Pour les PME, on ramène le score de 35 à 20
+      tranche_effectifs == "50 à 250" ~ (note_augmentation / 35) * 20,
+      # Pour les autres, le score est déjà sur 20
+      TRUE ~ note_augmentation
+    )
+  )
+
+message("✅ Colonne 'note_augmentation_harmonisee' créée.")
+```
+
+### Étape 3 : Préparation des Données Géographiques
+
+Nous chargeons et préparons notre fond de carte de référence des communes de Paris & Petite Couronne.
+
+```{r prepare-geo}
+
+# PREMIÈRE PINCE : On charge la carte V2 complète, avec le "brouillard de guerre" MGP
+# Appel de la fonction unique et blindée
+# Appel de la fonction unique et blindée
+map_com_prepared <- load_and_prepare_map()
+
+map_com_prepared <- map_com_prepared %>%
+  dplyr::mutate(ze_code = as.character(ze_code))
+
+```
+
+### Étape 4 : Création de la Table Finale
+
+Nous joignons toutes nos données pour créer une table unique, `master_df_historique`. Chaque ligne représente la performance d'une entreprise pour une année donnée, localisée et enrichie avec les données de son territoire d'implantation.
+
+```{r create-master-table}
+# Étape A : Créer les features socio-démographiques
+ze_socio_features <- aggregate_socio_to_ze(communes_features)
+
+# Étape B : Dédoublonner les données SIRENE
+sirene_deduplicated <- sirene_clean %>%
+  dplyr::distinct(siren, .keep_all = TRUE)
+
+# Étape C (NOUVEAU) : Décontamination de la carte de référence
+map_deduplicated <- map_com_prepared %>%
+  dplyr::distinct(com_code, .keep_all = TRUE)
+
+# Étape D : Construction de la table finale
+master_df_historique <- egapro_prepared %>%
+  inner_join(sirene_deduplicated, by = "siren") %>%
+  inner_join(
+    st_drop_geometry(map_deduplicated) %>% select(com_code, dep_name, epci_name, ze_name, ze_code),
+    by = c("code_commune" = "com_code"),
+    relationship = "many-to-one" # On impose la discipline : plusieurs entreprises PAR commune
+  ) %>%
+  left_join(
+    ze_socio_features %>% select(-ze_name),
+    by = "ze_code"
+  )
+
+message(
+  "✅ Table 'master_df_historique' finale créée avec ",
+  scales::comma(nrow(master_df_historique)), " observations."
+)
+```
+
+### Étape 5 : Sauvegarde des Fichiers pour l'Application Shiny
+
+Enfin, nous sauvegardons les objets R nécessaires dans un dossier `data_shiny`. L'application lira directement ces fichiers prêts à l'emploi.
+
+```{r save-for-shiny}
+output_dir <- "data_shiny"
+if (!dir.exists(output_dir)) dir.create(output_dir)
+
+# 5.1 Sauvegarde de la table de données principale (inchangé)
+saveRDS(master_df_historique, file.path(output_dir, "master_df_historique.RDS"))
+
+# 5.2 Sauvegarde des fonds de carte (MODIFICATION STRATÉGIQUE)
+saveRDS(map_com_prepared, file.path(output_dir, "map_com.RDS"))
+
+# ANCIENNE LIGNE (À SUPPRIMER OU METTRE EN COMMENTAIRE)
+# map_ept_prepared <- aggregate_map(map_com_prepared, level = "ept")
+# saveRDS(map_ept_prepared, file.path(output_dir, "map_ept.RDS"))
+
+# NOUVELLE LIGNE : Création de la carte unifiée des INTERCOMMUNALITÉS
+map_epci_prepared <- aggregate_map(map_com_prepared, level = "epci")
+saveRDS(map_epci_prepared, file.path(output_dir, "map_epci.RDS"))
+
+# INCHANGÉ
+map_dep_prepared <- aggregate_map(map_com_prepared, level = "dep")
+saveRDS(map_dep_prepared, file.path(output_dir, "map_dep.RDS"))
+
+map_ze_prepared <- aggregate_map(map_com_prepared, level = "ze")
+saveRDS(map_ze_prepared, file.path(output_dir, "map_ze.RDS"))
+
+message("✅ Tous les fichiers ont été sauvegardés dans le dossier '", output_dir, "'.")
+
+```

@@ -1,0 +1,176 @@
+/* ==========================================================================
+   STYLES.CSS - Thème "Technologie & Clarté"
+   ========================================================================== */
+
+/* --- 1. Variables CSS (Héritées de bslib) --- */
+/* On utilise les variables définies dans app.R pour une cohérence maximale.
+   --bs-primary: #7B61FF (violet)
+   --bs-secondary: #495057 (gris neutre)
+   --bs-body-bg: #F0F2F5 (fond ardoise)
+   --bs-body-color: #1E2A3A (texte ardoise)
+*/
+
+
+/* ==========================================================================
+   AJOUT : IMAGE DE FOND TRAITÉE AVEC OPACITÉ CONTRÔLÉE
+   ========================================================================== */
+
+body::before {
+  content: ''; 
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: -1;
+
+  /* On charge l'image de La Défense */
+  background-image: url('background_defense.jpg');
+  background-size: cover;
+  background-position: center center;
+
+  /* Le contrôle de l'opacité - à ajuster si besoin */
+  opacity: 0.1; /* J'ai légèrement augmenté l'opacité pour que l'image soit visible */
+
+  /* L'ASTUCE : Traitement de l'image en temps réel */
+  /* On la passe en noir et blanc, et on ajoute un léger flou */
+  filter: grayscale(100%) blur(2px);
+}
+
+/* --- 2. Barre de Navigation (Navbar) --- */
+/* La navbar utilisera la couleur secondaire (gris neutre) */
+.navbar {
+  background-color: var(--bs-secondary) !important;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.navbar-brand {
+  color: white !important;
+  font-weight: 600;
+}
+
+.navbar .nav-item .nav-link {
+  color: rgba(255, 255, 255, 0.8) !important; /* Blanc semi-transparent */
+  font-weight: 500;
+}
+
+.navbar .nav-item .nav-link:hover {
+  color: white !important; /* Blanc plein au survol */
+}
+
+/* L'onglet actif est souligné par la couleur primaire (violet) */
+.navbar .nav-item .nav-link.active {
+  color: white !important;
+  font-weight: 700;
+  border-bottom: 3px solid var(--bs-primary);
+}
+
+
+/* --- 3. Cartes (Cards) et Panneaux --- */
+.card {
+  border: none; /* On enlève les bordures pour un look plus plat */
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  margin-bottom: 24px;
+}
+
+.card-header {
+  font-weight: 600;
+  font-size: 1.5rem;
+  background-color: white; /* Fond blanc pour les en-têtes */
+  border-bottom: 1px solid #dee2e6; /* Bordure standard */
+}
+
+
+/* --- 4. Indicateurs Clés (Value Boxes) --- */
+/* On personnalise les thèmes "success" et "danger" pour qu'ils
+   soient plus doux et en accord avec la palette */
+.bg-success {
+  background-color: #d1f3e0 !important;
+  color: #0a3622 !important;
+}
+
+.bg-danger {
+  background-color: #f8d7da !important;
+  color: #58151c !important;
+}
+
+.value-box .value-box-value {
+  font-size: 2.2rem;
+  font-weight: 700;
+}
+
+.value-box .showcase {
+  opacity: 0.2;
+}
+
+/* --- 5. Sliders --- */
+.js-range-slider .irs-bar {
+  background-color: var(--bs-primary);
+  border-top: 1px solid var(--bs-primary);
+  border-bottom: 1px solid var(--bs-primary);
+}
+
+.js-range-slider .irs-from, .js-range-slider .irs-to, .js-range-slider .irs-single {
+  background-color: var(--bs-primary);
+}
+
+.js-range-slider .irs-handle {
+  border: 2px solid white;
+  background-color: var(--bs-primary);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+
+/* --- 6. Tableaux (DT) --- */
+table.dataTable thead th {
+  background-color: #f8f9fa !important; /* Fond gris clair pour l'en-tête */
+  color: var(--bs-body-color) !important; /* Texte sombre */
+  border-bottom: 2px solid var(--bs-primary) !important; /* Souligné en violet */
+}
+
+/* Centre le titre principal de l'application */
+.title {
+  text-align: center;
+  margin-top: 10px;
+  margin-bottom: 20px;
+  font-weight: 700; /* Le rend un peu plus gras */
+}
+
+/* Ajoute une marge intérieure au conteneur principal de la page
+   pour que les éléments ne touchent pas les bords de l'écran */
+.container-fluid {
+  padding-left: 30px;
+  padding-right: 30px;
+  
+  /* On cible spécifiquement le menu déroulant du widget selectize */
+.selectize-dropdown-content {
+  max-height: 400px !important; /* Augmente la hauteur maximale du menu */
+  overflow-y: auto !important;   /* Ajoute une barre de défilement verticale si nécessaire */
+}
+
+/* DANS www/styles.css */
+
+/* Cible le h2 généré par titlePanel() */
+.container-fluid > .title-panel {
+  text-align: center;
+  margin-top: 10px;
+  margin-bottom: 20px;
+  font-weight: 700;
+}
+
+/* 
+  Amélioration du bouton de bascule de la sidebar bslib
+  On le rend plus visible et cohérent avec le thème.
+*/
+.bslib-sidebar-toggle {
+  background-color: var(--bs-primary) !important; /* Utilise notre couleur primaire */
+  color: white !important;
+  border: 1px solid rgba(0,0,0,0.2) !important;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+  transition: all 0.2s ease-in-out;
+}
+
+.bslib-sidebar-toggle:hover {
+  transform: scale(1.1);
+  opacity: 0.9;
+}
