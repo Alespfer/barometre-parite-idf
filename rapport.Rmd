@@ -193,8 +193,6 @@ Directory structure:
             └── deploy-shinyapp.yml
 
 
-
-
 *   **Fichiers racine : **
     À la racine du projet se trouvent les fichiers qui orchestrent l'ensemble. `app.R` est le point d'entrée  de l'application, tandis que `global.R` prépare tout l'environnement en amont (librairies, données, fonctions). `run_pipeline.R` sert de déclencheur pour le processus de mise à jour des données, et `methodologie_preparation_donnees.Rmd` (évolution de `data_preparation.Rmd` dans la V1) documente ce même processus en détail. 
 
@@ -234,13 +232,10 @@ L'exploitation du baromètre sur la base de données constituée permet de déga
 
 ### 4.1 Une hyper-centralisation géographique : l'effet "siège social"
 
-L'analyse de notre base de données, composée d'un total de **33 001** observations (entreprise-année) sur la période 2018-2024, dévoile une hyper-centralisation géographique de l'activité économique. Un chiffre illustre cette réalité de manière frappante : près de 80 % des déclarations proviennent de la Métropole du Grand Paris.
+L'analyse de notre base de données, composée d'un total de **33 001** observations (entreprise-année) sur la période 2018-2024 (septembre 2025), dévoile une hyper-centralisation géographique de l'activité économique. Un chiffre illustre cette réalité de manière frappante : près de 80 % des déclarations proviennent de la Métropole du Grand Paris.
 
 Ce phénomène semble structurellement amplifié par notre méthodologie, basée sur la localisation du siège social des entreprises (SIREN). En effet, de nombreuses grandes entreprises nationales déclarent leur Index depuis leur siège à Paris ou La Défense, devenant ainsi des "poids lourds" statistiques qui masquent leurs activités réparties sur tout le territoire
 
-
-
-En effet, cette concentration se trouve structurellement renforcée par notre méthodologie, basée sur la localisation du siège social des entreprises, seule donnée disponible dans notre jeuj de données initial (SIREN).
 
 Pour contrer cet effet d'écrasement et conserver une analyse fine, nous avons délibérément choisi de garder dans notre version finale la maille des Établissements Publics Territoriaux (EPT) au sein de la Métropole, ce qui permet de préserver une meilleure visibilité des dynamiques locales. De même, l'intégration de l'ensemble des territoires franciliens enrichit l'analyse de données périphériques, bien qu'elle ne remette pas en cause cette dynamique de fond.
  
@@ -272,7 +267,7 @@ L'analyse par secteur d'activité confirme une profonde divergence des performan
 
 Le cas de l'Administration Publique offre un cas d'étude particulièrement révélateur. Ce secteur, encadré par des obligations réglementaires fortes en matière de parité, surperforme de manière générale sur l'ensemble des indicateurs. Il se démarque notamment sur le critère le plus difficile à atteindre pour le secteur privé : la part des femmes dans les 10 plus hautes rémunérations, avec une moyenne de 8,1/10 en 2024. Cette réussite démontre l'impact direct de l'action publique sur la réduction des inégalités structurelles, y compris au sommet de la hiérarchie. 
 
-### 4.5 Partié et convergence selon la taille d'effectif : 
+### 4.5 Parité et convergence selon la taille d'effectif : 
 
 Au-delà du secteur, la taille des effectifs semble constituer un facteur discriminant majeur. Ainsi, en 2024, un écart moyen significatif de 4,4 points persiste entre le score moyen des grandes entreprises (+1000 salariés) qui s'élève à 91 points, et celui des PME (50-250 salariés) qui n'atteint que les 86,6 points.
 
@@ -289,9 +284,9 @@ L'un des paris de cette nouvelle version du baromètre était de réexaminer les
 
 En changeant d'échelle pour adopter la Zone d'Emploi — une maille fonctionnelle qui reflète mieux les bassins de vie et de travail — le tableau change radicalement. Des corrélations statistiquement significatives émergent, semblant conforter notre hypothèse initiale :
 
-Une forte corrélation positive (r = +0,73, p < 0,01) apparaît entre le score Egapro moyen d'un territoire et le taux de féminisation de ses postes de cadres. Cela nous permettrait de suggérer que les bassins d'emploi disposant d'un vivier de talents féminins à haut niveau de qualification seraient potentiellement aussi ceux qui hébergent les entreprises les plus performantes.
+*   **Une forte corrélation positive (r = +0,73, p < 0,01)** apparaît entre le score Egapro moyen d'un territoire et le taux de féminisation de ses postes de cadres. Cela nous permettrait de suggérer que les bassins d'emploi disposant d'un vivier de talents féminins à haut niveau de qualification seraient potentiellement aussi ceux qui hébergent les entreprises les plus performantes.
 
-Une corrélation négative encore plus puissante (r = -0,82, p-value < 0,001) lie le score Egapro à la part des femmes dans les professions intermédiaires. Ce résultat, bien que contre-intuitif, est riche d'enseignements. Il pourrait signifier que les Zones d'Emploi spécialisées dans des secteurs tertiaires où les femmes sont majoritaires dans les strates intermédiaires sont aussi celles où les freins à la progression de carrière ("plafond de verre") sont les plus forts, impactant négativement les indicateurs de promotion et de hautes rémunérations de l'Index Egapro.
+*   **Une corrélation négative encore plus puissante (r = -0,82, p-value < 0,001)** lie le score Egapro à la part des femmes dans les professions intermédiaires. Ce résultat, bien que contre-intuitif, est riche d'enseignements. Il pourrait signifier que les Zones d'Emploi spécialisées dans des secteurs tertiaires où les femmes sont majoritaires dans les strates intermédiaires sont aussi celles où les freins à la progression de carrière ("plafond de verre") sont les plus forts, impactant négativement les indicateurs de promotion et de hautes rémunérations de l'Index Egapro.
 
 Cependant, une prudence méthodologique s'impose. Nous avons constaté que la significativité de ces corrélations est très fortement influencée par le poids statistique des Zones d'Emploi de la Métropole du Grand Paris. La relation observée pourrait donc être moins une loi générale qu'un reflet de la structure économique très spécifique du cœur dense de la région, invitant à ne pas sur-interpréter ces résultats.
 

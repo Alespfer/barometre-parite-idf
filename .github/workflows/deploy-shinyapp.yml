@@ -29,5 +29,5 @@ jobs:
 
       - name: Déploiement de l'application
         run: |
-          Rscript -e "rsconnect::setAccountInfo(name='${{ secrets.SHINYAPPS_ACCOUNT }}', token='${{ secrets.SHINYAPPS_TOKEN }}', secret='${{ secrets.SHINYAPPS_SECRET }}')"
+          Rscript -e "rsconnect::setAccountInfo(name='${{ secrets.RSCONNECT_USER }}', token='${{ secrets.RSCONNECT_TOKEN }}', secret='${{ secrets.RSCONNECT_SECRET }}')"
           Rscript -e "rsconnect::deployApp(forceUpdate = TRUE)"
