@@ -318,5 +318,6 @@ Au-delà de ces résultats, la valeur du projet final réside dans sa pérennit�
 
 L'application est accessible en ligne. Il est recommandé de la consulter sur un écran d'ordinateur pour une expérience optimale.
 
-**[Cliquez ici pour accéder au Baromètre de la Parité en Entreprise](https://alespfer.shinyapps.io/barometre-parite-paris-1/)**
+**[Cliquez ici pour accéder au Baromètre de la Parité en Entreprise]( https://alespfer.shinyapps.io/barometre-parite-idf/)**
 
+**[Cliquez ici pour consulter le code source du projet sur GitHub](https://github.com/Alespfer/barometre-parite-idf)**
