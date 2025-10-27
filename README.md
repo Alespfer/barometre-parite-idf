@@ -111,6 +111,6 @@ This project is distributed under the MIT License. See the `LICENSE` file for mo
 
 ## Contact
 
-Alberto Esperon - [LinkedIn](https://www.linkedin.com/in/alberto-esperon-837050160/) - [GitHub Profile](https://github.com/Alespfer)
+Alberto Esperon - [LinkedIn](https://www.linkedin.com/in/alberto-espfer) - [GitHub Profile](https://github.com/Alespfer)
 
 Project Link: [https://github.com/Alespfer/barometre-parite-idf](https://github.com/Alespfer/barometre-parite-idf)
